@@ -2,9 +2,12 @@
 #ifndef BASE_TYPES_H
 #define BASE_TYPES_H
 
+#include <assert.h>
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <functional>
+
 // 
 // 基本类型的定义，只依赖于C++标准库。
 // 
@@ -23,7 +26,10 @@ namespace rdb
 	// 
 	using Datum = uintptr_t;
 	using ColTypeMod = int32_t;
-	enum ColType : int16_t
+	// 第8位必须为0，负数用于dropped列。
+	// 第7位必须为0，为1表示是数组。
+	const int8_t ArrayColTypeMask = 0x40;
+	enum ColType : int8_t
 	{
 		CT_INT8 = 0x01, 
 		CT_INT16 = 0x02, 
@@ -65,13 +71,13 @@ namespace rdb
 		ColTypeInfo(ColType ct_, ColTypeMod ctmod_ = 0) : ct(ct_), ctmod(ctmod_)
 		{}
 	};
-	using RowTypeInfo = std::vector<ColTypeInfo *>;
+	// 包含可能的系统列和删除列。系统列在开头。
+	using RowTypeInfo = std::vector<ColTypeInfo>;
 	// 需要RowTypeInfo才能解析RowDatum。
 	struct RowDatum
 	{
-		Datum * col_datums;
-		bool  * col_nulls;
-		bool has_null;
+		Datum *   col_datums;
+		uint8_t * col_nullbmp; // nullptr，如果没有NULL值。
 	};
 	
 	using CTInt8 = int8_t;
@@ -84,21 +90,29 @@ namespace rdb
 	using CTDouble = double;
 
 	using CTDecimal64 = int64_t;
-	struct CTDecimal128
+	struct CTDecimal128Data
 	{
-		uint8_t data[16];
+		uint8_t data[16]; // 16字节整数,big-endian格式。
 	};
+	using CTDecimal128 = CTDecimal128Data*;
+
+#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+	#define HAVE_MYINT128
+	using myint128 = __int128;
+	using myuint128 = unsigned __int128;
+#endif
 	
 	struct Varlena
 	{
 		uint8_t flag;
 		char data[0];
 	};
-	const uint8_t FlagLenMask = 0x03;
-	const uint8_t ToastFalg = 0x00;
-	const uint8_t Len1Flag = 0x01;
-	const uint8_t Len2Flag = 0x02;
-	const uint8_t Len4Flag = 0x03;
+	const uint32_t VLAFlagSize = sizeof(uint8_t);
+	const uint8_t VLAFlagLenMask = 0x03;
+	const uint8_t VLAToastFlag = 0x00;
+	const uint8_t VLALen1Flag = 0x01;
+	const uint8_t VLALen2Flag = 0x02;
+	const uint8_t VLALen4Flag = 0x03;
 	using CTText = Varlena*;
 	using CTBytes = Varlena*;
 	
@@ -106,7 +120,7 @@ namespace rdb
 	// time32/timetz32是距离00:00:00的毫秒数。
 	// time64/timetz64是距离00:00:00的微秒数。
 	// timestamp/timestamptz是距离epoch的微秒数。
-	// interval用64位表示，高20位表示月数，低44位表示微秒数，各部分的最高位是符号位。
+	// interval用64位表示，高20位表示月数，低44位表示微秒数，各部分的最低位是符号位。
 	using CTDate = int32_t;
 	using CTTime32 = uint32_t;
 	using CTTime64 = uint64_t;
@@ -115,6 +129,17 @@ namespace rdb
 	using CTTimeTz64 = uint64_t;
 	using CTTimeStampTz = int64_t;
 	using CTInterval = uint64_t;
+
+	const int IntervalMicroBitNum = 44;
+	const uint64_t IntervalMonthMask = 0xFFFFFULL << IntervalMicroBitNum;
+	const uint64_t IntervalMicroMask = ~IntervalMonthMask;
+	// 最小值是最大值的负值
+	const int64_t IntervalMaxMonth = 0x7FFFF;
+	const int64_t IntervalMaxMicro = 0x7FFFFFFFFFF;
+
+	const int32_t SecPerDay = 24 * 60 * 60;
+	const int32_t MilliPerDay = SecPerDay * 1000;
+	const int64_t MicroPerDay = (int64_t)MilliPerDay * 1000;
 	
 	using CTBlob = uint64_t;
 	
@@ -122,6 +147,8 @@ namespace rdb
 	using CTGeography = Varlena*;
 
 	using CTJson = Varlena*;
+
+	using CTArray = Varlena*;
 	
 	// 
 	// 这些id都从1开始计数。
@@ -143,12 +170,15 @@ namespace rdb
 	// 表id的高2位用于表示表是否有表分区和列分区。对于没有分区的表，key里面就无需包含分区id。
 	// 索引id的高1位用于表示表是否包含表分区。索引的key里不包含列分区id。
 	// 
+	// 表版本id用于追踪表定义的变化，当增加/删除列以及修改列类型后，会增加一个表定义版本。
+	// 
 	using ColId = int16_t;
 	using ColPartId = int16_t;
 	using RowId = uint64_t;
 	using TableId = uint32_t;
 	using TablePartId = uint32_t;
 	using IndexId = uint32_t;
+	using TableVersionId = uint32_t;
 	
 	// 表分区类型。
 	// PT_NONE表示不是分区表，内部存储的key中也没有分区id。

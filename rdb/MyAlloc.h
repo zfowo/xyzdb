@@ -40,7 +40,7 @@ namespace rdb
 		uint64_t alloc_total_size;
 	};
 
-	class ThrAllocator
+	class ThrAllocator : public Allocator
 	{
 	public:
 		ThrAllocator(Allocator * alloc_) : alloc(alloc_) {}
@@ -190,6 +190,42 @@ namespace rdb
 		{
 			mydelete(p);
 		}
+	};
+	template <typename T>
+	struct myfreer
+	{
+		void operator()(T * p)
+		{
+			myfree(p);
+		}
+	};
+
+	template <typename T, template <typename TT> typename D>
+	class MyPtrHolder
+	{
+	public:
+		MyPtrHolder(T * pt_) : pt(pt_)
+		{}
+		~MyPtrHolder()
+		{
+			if (this->pt)
+				D<T>()(this->pt);
+		}
+		NO_COPY(MyPtrHolder);
+		MY_MOVE(MyPtrHolder, pt)
+
+		T * Ptr() const 
+		{ 
+			return this->pt; 
+		}
+		T * Release()
+		{
+			T * pt2 = this->pt;
+			this->pt = nullptr;
+			return pt2;
+		}
+	private:
+		T * pt;
 	};
 
 } // end of namespace rdb

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -148,13 +148,27 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\rdb\BaseTypes.h" />
+    <ClInclude Include="..\..\rdb\ColTypeFuncs.h" />
+    <ClInclude Include="..\..\rdb\DatumFuncs.h" />
+    <ClInclude Include="..\..\rdb\MiscUtils.h" />
     <ClInclude Include="..\..\rdb\MyAlloc.h" />
+    <ClInclude Include="..\..\rdb\MyBitmap.h" />
     <ClInclude Include="..\..\rdb\NoCopyMove.h" />
+    <ClInclude Include="..\..\rdb\RdbException.h" />
     <ClInclude Include="..\..\rdb\RowList.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\rdb\ColTypeFuncs.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\rdb\DatumFuncs.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\rdb\MiscUtils.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\..\rdb\MyAlloc.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
